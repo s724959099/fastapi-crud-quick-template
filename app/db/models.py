@@ -13,12 +13,12 @@ class User(db.Entity):
 
 
 class Todo(db.Entity):
-    """Todo table"""
+    """To do table"""
     _table_ = 'Todo'
     name = Required(str)
 
     user = Optional(User)
 
 
-db.bind(provider='sqlite', filename=':memory:')
+db.bind(provider='sqlite', filename='demo.db', create_db=True)
 db.generate_mapping(create_tables=True)
