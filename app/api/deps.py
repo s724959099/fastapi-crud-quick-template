@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 
 def get_pagination_schema(
-        schema: typing.Type[BaseModel]
+        schema: Optional[typing.Type[typing.Any]] = None
 ) -> typing.Union[type, BaseModel]:
     """
 

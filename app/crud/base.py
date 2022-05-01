@@ -1,12 +1,11 @@
 """Base crud"""
-import datetime
 import typing
 from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, Union
 
 from db import models
 from fastapi import HTTPException
 from pony.orm import flush
-from pony.orm.core import Query, desc
+from pony.orm.core import Query
 from pydantic import BaseModel
 
 ModelType = TypeVar('ModelType', bound=models.db.Entity)

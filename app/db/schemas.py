@@ -4,6 +4,7 @@ import typing
 
 UserCreate = pony_orm_to_pydantic(models.User, exclude=['id'], is_orm=False)
 TodoCreate = pony_orm_to_pydantic(models.Todo, exclude=['id'], is_orm=False)
+TodoUpdate = TodoCreate
 User = pony_orm_to_pydantic(models.User)
 Todo = pony_orm_to_pydantic(models.Todo)
 TodoWithUser = pony_orm_to_pydantic(
