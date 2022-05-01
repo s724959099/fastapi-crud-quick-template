@@ -66,8 +66,11 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         """Create data"""
         if isinstance(data, BaseModel):
             data = data.dict()
+        data.update(extra_data)
+        for key in exclude:
+            if key in data:
+                del data[key]
         db_obj = self.model(**data)
-        db_obj = self.update_obj(db_obj, {}, exclude, extra_data)
         flush()
         return db_obj
 
@@ -82,8 +85,9 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         db_obj = self.get(_id)
         return self.update_by_db_object(db_obj, data, exclude, extra_data)
 
-    @staticmethod
+    # noinspection PyMethodMayBeStatic
     def update_obj(
+            self,
             db_obj: ModelType,
             data: Union[UpdateSchemaType, Dict[str, Any]],
             exclude: Optional[typing.List] = None,
@@ -99,7 +103,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             if field in exclude:
                 continue
             setattr(db_obj, field, value)
-        for field, value in extra_data:
+        for field, value in extra_data.items():
             if field in exclude:
                 continue
             setattr(db_obj, field, value)
