@@ -29,7 +29,7 @@ def pony_orm_to_pydantic(
     if not is_orm and config is OrmConfig:
         config = None
     fields = {}
-    for column in db_model._attrs_:  # ignore: protected-access
+    for column in db_model._attrs_:  # pylint:disable=protected-access
         python_type = (
             include[column.name]
             if column.name in include else
