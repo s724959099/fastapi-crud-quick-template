@@ -1,11 +1,15 @@
-from crud.base import CRUDBase
-from pydantic import BaseModel
-from fastapi import APIRouter, Depends
-from api.deps import Pagination, get_pagination_schema
+"""API CRUD method for quickly to build"""
 import typing
+
+from api.deps import Pagination, get_pagination_schema
+from crud.base import CRUDBase
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 
 
 class RouterAbstract:
+    """Router Absctact for quickly to build"""
+
     def __init__(self, crud_api: CRUDBase):
         self._crud = crud_api
 
@@ -62,6 +66,7 @@ def add_crud_route_factory(
     """
 
     class RouterMethod(RouterAbstract):
+        """Custom Router Method for quickly to build"""
 
         async def get_one(self, item_id: typing.Any):
             return self._crud.get(item_id)
