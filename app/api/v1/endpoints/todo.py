@@ -1,9 +1,10 @@
 """Todo api"""
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends
 from db import schemas, models
-from pony.orm import flush
 from api.deps import get_pagination_schema, Pagination
+from crud import base
 
+crud = base.CRUDBase(models.Todo)
 router = APIRouter()
 
 
@@ -15,9 +16,7 @@ router = APIRouter()
 async def post_group(
         todo_create: schemas.TodoCreate
 ):
-    ret = models.Todo(**todo_create.dict())
-    flush()
-    return ret
+    return crud.create(todo_create)
 
 
 @router.put(
@@ -29,14 +28,7 @@ async def post_group(
         todo_create: schemas.TodoCreate,
         item_id: int,
 ):
-    todo = models.Todo.get(item_id)
-    if not todo:
-        raise HTTPException(status_code=404, detail='Not Found')
-    data = todo_create.dict()
-    for field, value in data.items():
-        setattr(todo, field, value)
-    flush()
-    return todo
+    return crud.update_by_id(item_id, todo_create)
 
 
 @router.delete(
@@ -47,10 +39,7 @@ async def post_group(
 async def post_group(
         item_id: int,
 ):
-    todo = models.Todo.get(item_id)
-    if not todo:
-        raise HTTPException(status_code=404, detail='Not Found')
-    todo.delete()
+    crud.remove_by_id(item_id)
     return
 
 
@@ -62,10 +51,7 @@ async def post_group(
 async def post_group(
         item_id: int,
 ):
-    todo = models.Todo.get(item_id)
-    if not todo:
-        raise HTTPException(status_code=404, detail='Not Found')
-    return todo
+    return crud.get(item_id)
 
 
 @router.get(
@@ -76,5 +62,5 @@ async def post_group(
 async def post_group(
         pagination: Pagination = Depends()
 ):
-    query = models.Todo.select()
+    query = crud.query()
     return await pagination.paginate(query)

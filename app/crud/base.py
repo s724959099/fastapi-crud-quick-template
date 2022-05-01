@@ -1,5 +1,6 @@
 """Base crud"""
 import datetime
+import typing
 from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, Union
 
 from db import models
@@ -27,97 +28,105 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         """
         self.model = model
 
-    def query(self) -> Query:
+    def query(self, *args, **kwargs) -> Query:
         """query data"""
-        return self.model.select(lambda x: not x.deleted)
+        return self.model.select(*args, **kwargs)
 
-    @staticmethod
-    def query_to_remove(query: Query):
-        """find to remove"""
-        obj = {
-            'deleted': True,
-            'deleted_at': datetime.datetime.now()
-        }
-        for el in query:
-            # pylint:disable-next=consider-using-dict-items
-            for key in obj:
-                setattr(el, key, obj[key])
+    def update_by_query(
+            self,
+            query: Query,
+            data: Union[UpdateSchemaType, Dict[str, Any]],
+            exclude: Optional[typing.List] = None,
+            extra_data: Optional[dict] = None,
+    ):
+        for db_obj in query:
+            self.update_obj(db_obj, data, exclude, extra_data)
+        flush()
 
-    @staticmethod
-    def query_to_update(query: Query, obj=None):
-        """find to update"""
-        # auto update
-        if obj is None:
-            obj = {}
-        obj.update({
-            'deleted': False,
-            'deleted_at': None,
-            'updated_at': datetime.datetime.now()
-        })
-        for el in query:
-            # set obj key
-            for key in obj:
-                setattr(el, key, obj[key])
-
-    def get(self, _id: Any) -> Optional[ModelType]:
+    def get(
+            self, _id: Any,
+            extra_query: Optional[dict] = None
+    ) -> Optional[ModelType]:
         """get data by id"""
-        ret = self.model.get(id=_id, deleted=False)
+        extra_query = extra_query or {}
+        ret = self.model.get(id=_id, **extra_query)
         if not ret:
             raise HTTPException(status_code=404, detail='Not found')
         return ret
 
-    def get_list_query(
+    def get_query_list(
             self,
     ) -> List[ModelType]:
-        """get data by query"""
-        return self.query().order_by(desc(self.model.created_at))
+        """get list data by query"""
+        return list(self.query())
 
-    def create(self, obj_in: Union[CreateSchemaType, dict],
-               **kwargs) -> ModelType:
+    def create(self,
+               data: Union[CreateSchemaType, Dict[str, Any]],
+               exclude: Optional[typing.List] = None,
+               extra_data: Optional[dict] = None) -> ModelType:
         """Create data"""
-        obj_in_data = obj_in
-        if isinstance(obj_in, BaseModel):
-            obj_in_data = obj_in.dict()
-        obj_in_data.update(kwargs)
-        db_obj = self.model(**obj_in_data)  # type: ignore
+        if isinstance(data, BaseModel):
+            data = data.dict()
+        db_obj = self.model(**data)
+        db_obj = self.update_obj(db_obj, {}, exclude, extra_data)
         flush()
         return db_obj
 
-    def update(
+    def update_by_id(
+            self,
+            _id: Any,
+            data: Union[UpdateSchemaType, Dict[str, Any]],
+            exclude: Optional[typing.List] = None,
+            extra_data: Optional[dict] = None,
+    ):
+
+        db_obj = self.get(_id)
+        return self.update_by_db_object(db_obj, data, exclude, extra_data)
+
+    @staticmethod
+    def update_obj(
+            db_obj: ModelType,
+            data: Union[UpdateSchemaType, Dict[str, Any]],
+            exclude: Optional[typing.List] = None,
+            extra_data: Optional[dict] = None,
+    ):
+        exclude = exclude or []
+        extra_data = extra_data or {}
+        # check if data is not dict
+        if isinstance(data, BaseModel):
+            data = data.dict()
+        # udpate by data
+        for field, value in data.items():
+            if field in exclude:
+                continue
+            setattr(db_obj, field, value)
+        for field, value in extra_data:
+            if field in exclude:
+                continue
+            setattr(db_obj, field, value)
+        return db_obj
+
+    def update_by_db_object(
             self,
             db_obj: ModelType,
-            obj_in: Union[UpdateSchemaType, Dict[str, Any]],
-            **kwargs
-    ) -> ModelType:
-        """update data"""
-        if isinstance(obj_in, dict):
-            obj_in_data = obj_in
-        else:
-            obj_in_data = obj_in.dict(exclude_unset=True)
-        obj_in_data.update(kwargs)
-        for field in obj_in_data:
-            setattr(db_obj, field, obj_in_data[field])
-        for field, val in kwargs.items():
-            setattr(db_obj, field, val)
-        db_obj.updated_at = datetime.datetime.now()
+            data: Union[UpdateSchemaType, Dict[str, Any]],
+            exclude: Optional[typing.List] = None,
+            extra_data: Optional[dict] = None,
+    ):
+        """db data by db object"""
+        db_obj = self.update_obj(db_obj, data, exclude, extra_data)
         flush()
         return db_obj
 
-    def remove(self, _id: Optional[int] = None,
-               obj: Optional[ModelType] = None, **kwargs) -> ModelType:
-        """remove data"""
-        if obj is None:
-            obj = self.get(_id)
-        if not obj:
-            raise HTTPException(status_code=404, detail='Not found')
-        # soft delete
-        obj.deleted = True
-        now = datetime.datetime.now()
-        obj.deleted_at = now
-        obj.updated_at = now
-        for key, val in kwargs.items():
-            setattr(obj, key, val)
+    def remove_by_id(self, _id: Any):
+        """remove data by id"""
+        db_obj = self.get(_id)
+        db_obj.delete()
         flush()
-        return {
-            'msg': 'success'
-        }
+
+    @staticmethod
+    def remove_by_query(
+            query: Query
+    ):
+        query.delete()
+        flush()
